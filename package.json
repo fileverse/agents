@@ -15,6 +15,10 @@
     "infra",
     "onchain"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fileverse/agents.git"
+  },
   "author": "Vijay Krishnavanshi",
   "license": "MIT",
   "dependencies": {
