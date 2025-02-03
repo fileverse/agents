@@ -1,0 +1,335 @@
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseEventLogs,
+} from "viem";
+import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
+import { gnosis, sepolia } from "viem/chains";
+import { PinataSDK } from "pinata-web3";
+import { PortalRegistryABI, PortalABI } from "./abi/index.js";
+import { generatePortalKeys, getPortalKeyVerifiers } from "./keys.js";
+import { createPimlicoClient } from "permissionless/clients/pimlico";
+import { toSafeSmartAccount } from "permissionless/accounts";
+import { entryPoint07Address } from "viem/account-abstraction"
+import { createSmartAccountClient } from "permissionless";
+import fs from "fs";
+
+class Agent {
+  DELETED_HASH = "ipfs://deleted";
+  constructor({ chain, privateKey, pimlicoAPIKey, pinataJWT, pinataGateway }) {
+    if (!chain) {
+      throw new Error("Chain is required - options: gnosis, sepolia");
+    }
+    if (!pimlicoAPIKey) {
+      throw new Error("Pimlico API key is required");
+    }
+    if (!pinataJWT || !pinataGateway) {
+      throw new Error("Pinata JWT and gateway are required");
+    }
+    this.chain = chain === "gnosis" ? gnosis : sepolia;
+    this.pimlicoAPIKey = pimlicoAPIKey;
+    this.pinataJWT = pinataJWT;
+    this.pinataGateway = pinataGateway;
+    this.viemAccount = privateKey
+      ? privateKeyToAccount(privateKey)
+      : privateKeyToAccount(generatePrivateKey());
+    const clients = this.genrateClients();
+    this.publicClient = clients.publicClient;
+    this.walletClient = clients.walletClient;
+    this.portalRegistry = this.setPortalRegistry();
+    this.owner = this.viemAccount.address;
+    this.pinata = new PinataSDK({
+      pinataJwt: this.pinataJWT,
+      pinataGateway: this.pinataGateway,
+    });
+  }
+
+  async setupSafe() {
+    const pimlicoRpcUrl = `https://api.pimlico.io/v2/${this.chain.name.toLowerCase()}/rpc?apikey=${this.pimlicoAPIKey}`;
+    const paymasterClient = createPimlicoClient({
+      transport: http(pimlicoRpcUrl),
+      entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+      },
+    });
+    this.safeAccount = await toSafeSmartAccount({
+      client: this.publicClient,
+      entryPoint: {
+        address: entryPoint07Address,
+        version: "0.7",
+      },
+      owners: [this.viemAccount],
+      version: "1.4.1",
+    });
+    const smartAccountClient = createSmartAccountClient({
+      account: this.safeAccount,
+      chain: this.chain,
+      paymaster: paymasterClient,
+      bundlerTransport: http(pimlicoRpcUrl),
+      userOperation: {
+        estimateFeesPerGas: async () => (await paymasterClient.getUserOperationGasPrice()).fast,
+      },
+    });
+    this.smartAccountClient = smartAccountClient;
+  }
+
+  genrateClients() {
+    return {
+      publicClient: createPublicClient({
+        chain: this.chain,
+        transport: http(),
+      }),
+      walletClient: createWalletClient({
+        chain: this.chain,
+        transport: http(),
+        account: this.viemAccount,
+      }),
+    };
+  }
+
+  setPortalRegistry() {
+    if (this.chain.name.toLowerCase() === "gnosis") {
+      return "0x945690a516519daEE95834C05218839c8deEC88D";
+    } else {
+      return "0x8D9E28AC21D823ddE63fbf20FAD8EdD4F4a0cCfD";
+    }
+  }
+
+  async getBlockNumber() {
+    return this.publicClient.getBlockNumber();
+  }
+
+  async loadStorage(namespace) {
+    if (!fs.existsSync("creds")) {
+      fs.mkdirSync("creds");
+    }
+    if (!fs.existsSync(`creds/${namespace}.json`)) {
+      return null;
+    }
+    const storage = fs.readFileSync(`creds/${namespace}.json`, "utf8");
+    return JSON.parse(storage);
+  }
+
+  async setupStorage(namespace) {
+    if (!namespace) {
+      throw new Error("Namespace is required");
+    }
+    this.namespace = `${namespace}-${this.chain.name.toLowerCase()}`;
+    await this.setupSafe();
+    try {
+      const storage = await this.loadStorage(this.namespace);
+      if (storage && storage.namespace === this.namespace) {
+        console.log("Storage already exists");
+        this.portal = storage.portalAddress;
+        return storage;
+      }
+      const metadataIPFSHash = await this.uploadToIPFS(
+        "metadata.json",
+        JSON.stringify({
+          namespace: this.namespace,
+          source: "FileverseAgent",
+          gateway: this.pinataGateway,
+        })
+      );
+      const portalKeys = await generatePortalKeys();
+      const verifiers = await getPortalKeyVerifiers(portalKeys);
+      const hash = await this.smartAccountClient.sendUserOperation({
+        calls: [{
+          to: this.portalRegistry,
+          abi: PortalRegistryABI,
+          functionName: "mint",
+          args: [
+            metadataIPFSHash,
+            portalKeys.viewDID,
+            portalKeys.editDID,
+            verifiers.portalEncryptionKeyVerifier,
+            verifiers.portalDecryptionKeyVerifier,
+            verifiers.memberEncryptionKeyVerifer,
+            verifiers.memberDecryptionKeyVerifer,
+          ],  
+        }]
+      });
+      const receipt = await this.smartAccountClient.waitForUserOperationReceipt({
+        hash,
+      });
+
+      const logs = parseEventLogs({
+        abi: PortalRegistryABI,
+        logs: receipt.logs,
+        eventName: "Mint",
+      });
+
+      const portalAddress = logs[0].args.portal;
+
+      if (!portalAddress) throw new Error("Portal not found");
+
+      this.portal = portalAddress;
+      fs.writeFileSync(
+        `creds/${this.namespace}.json`,
+        JSON.stringify(
+          {
+            portalAddress,
+            owner: this.owner,
+            namespace: this.namespace,
+            metadataIPFSHash,
+            portalKeys,
+            verifiers,
+          },
+          null,
+          2
+        )
+      );
+      return this.portal;
+    } catch (error) {
+      console.error("Error deploying portal:", error);
+      throw error;
+    }
+  }
+
+  async getPortal() {
+    return this.portal;
+  }
+
+  async uploadToIPFS(fileName, content) {
+    try {
+      const file = new File([content], fileName, { type: "text/plain" });
+      const result = await this.pinata.upload.file(file);
+      return `ipfs://${result.IpfsHash}`;
+    } catch (error) {
+      console.error("Error uploading to IPFS:", error);
+      throw error;
+    }
+  }
+
+  async create(output) {
+    const contentIpfsHash = await this.uploadToIPFS('output.md', output);
+
+    const metadata = {
+      name: `${this.portal}/${this.namespace}/output.md`,
+      description: "Markdown file created by FileverseAgent",
+    };
+    const metadataIpfsHash = await this.uploadToIPFS(
+      'metadata.json',
+      JSON.stringify(metadata)
+    );
+
+    const hash = await this.smartAccountClient.sendUserOperation({
+      calls: [{
+        to: this.portal,
+        abi: PortalABI,
+        functionName: "addFile",
+        args: [
+          metadataIpfsHash,
+          contentIpfsHash,
+          "", // _gateIPFSHash (empty for public files)
+          0, // filetype (0 = PUBLIC from enum)
+          0, // version
+        ],
+      }]
+    });
+
+    const receipt = await this.smartAccountClient.waitForUserOperationReceipt({ hash });
+    const logs = parseEventLogs({
+      abi: PortalABI,
+      logs: receipt.logs,
+      eventName: "AddedFile",
+    });
+    const addedFileLog = logs[0];
+
+    if (!addedFileLog) {
+      throw new Error("AddedFile event not found");
+    }
+
+    const fileId = addedFileLog.args?.fileId;
+    const transaction = {
+      hash: hash,
+      fileId,
+      portalAddress: this.portal.portalAddress,
+    };
+    return transaction;
+  }
+
+  async getFile(fileId) {
+    const file = await this.publicClient.readContract({
+      address: this.portal,
+      abi: PortalABI,
+      functionName: "files",
+      args: [fileId],
+    });
+    const [metadataIpfsHash, contentIpfsHash] = file;
+    return {
+      portal: this.portal,
+      namespace: this.namespace,
+      metadataIpfsHash,
+      contentIpfsHash,
+    };
+  }
+
+  async update(fileId, output) {
+    const contentIpfsHash = await this.uploadToIPFS("output.md", output);
+
+    const metadata = {
+      name: "output.md",
+      description: "Updated Markdown file by FileverseAgent",
+      contentIpfsHash,
+    };
+    const metadataIpfsHash = await this.uploadToIPFS("metadata.json", metadata);
+
+    const hash = await this.smartAccountClient.sendUserOperation({
+      calls: [{
+        to: this.portal,
+        abi: PortalABI,
+        functionName: "editFile",
+        args: [
+          fileId,
+          metadataIpfsHash,
+          contentIpfsHash,
+          "", // _gateIPFSHash (empty for public files)
+          0, // filetype (0 = PUBLIC from enum)
+          0, // version
+        ],
+      }]
+    });
+
+    const transaction = {
+      hash: hash,
+      fileId,
+      portalAddress: this.portal,
+    };
+    return transaction;
+  }
+
+  async delete(fileId) {
+    try {
+      const hash = await this.smartAccountClient.sendUserOperation({
+        calls: [{
+          to: this.portal,
+          abi: PortalABI,
+          functionName: "editFile",
+          args: [
+          fileId,
+          this.DELETED_HASH,
+          this.DELETED_HASH,
+          "", // _gateIPFSHash (empty for deleted files)
+          0, // filetype (0 = PUBLIC from enum)
+          0, // version
+        ],
+      }]
+    });
+
+    const transaction = {
+      hash: hash,
+      fileId,
+      portalAddress: this.portal,
+    };
+      return transaction;
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      throw new Error("File deletion failed.");
+    }
+  }
+}
+
+export { Agent };
