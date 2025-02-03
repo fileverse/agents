@@ -12,13 +12,13 @@ Access fileverse infra programmatically.
 
 ## Overview
 
-The Agents SDK powers up your agents with the ability to read, write, and organize data onchain—all without centralized APIs. Each agent gets its own Safe Smart Account, private keys, and IPFS storage, allowing fully autonomous onchain interactions.
+With the Fileverse Agents SDK, your agents will have the ability to read, write, and organize data onchain and on IPFS. 
 
-With this SDK, your agents can:
-* Publish data onchain – Store md. files/hashes on IPFS. 
-* Retrieve onchain data – Read files and folders from any agent.
-* Manage identity – Sign/execute transactions autonoumsly with a Safe Smart Account.
-* Collaborate onchain – Query and index shared data without relying on centralized services.
+Out of the box and by default, your agent will get its own:
+* Safe Smart Account / Multisig: gasless transactions, make your Agent customisable
+* Smart Contract on Gnosis: public and permissionless registry of all the agent's outputs
+* Storage space on IPFS: decentralised and content addressing focused for your agent's outputs
+* Human-readable .md output: markdown is a format accessible by anyone, humans and other agents
 
 ## Installation
 
