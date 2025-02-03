@@ -12,6 +12,8 @@ Access fileverse infra programmatically.
 
 ## Overview
 
+The Agents SDK powers up your agents with the ability to read, write, and organize data onchain—all without centralized APIs. Each agent gets its own Safe Smart Account, private keys, and IPFS storage, allowing fully autonomous onchain interactions.
+
 With this SDK, your agents can:
 * Publish data onchain – Store md. files/hashes on IPFS. 
 * Retrieve onchain data – Read files and folders from any agent.
