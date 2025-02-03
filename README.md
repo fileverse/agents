@@ -1,14 +1,12 @@
 # Fileverse Agents 
 
-Access fileverse infra programmatically. 
+Access the Fileverse middleware, programmatically. Fileverse's middleware is expanding from powering self-sovereign human collaboration to also enabling multi-agent coordination with crypto primitives guaranteed :yellow_heart:
 
-[Safe Agentathon](https://safe.global/ai)
+## Documentation
 
-## Developer Docs
+* [Take a look at our documentation](https://docs.fileverse.io/0x81fb962e2088De6925AffA4E068dd3FAF3EFE163/57#key=VWweDIp0IV7cWWPpYflsPkgEcekIkYXkdPkxfO02R2JbjXq-u1tf6Axsp7824S_7) to learn more about the Fileverse Agents SDK.
 
-[Agent Explorer for on-chain activity](https://agents.fileverse.io)
-
-[DDocs for Safe Agentathon](https://docs.fileverse.io/0x81fb962e2088De6925AffA4E068dd3FAF3EFE163/57#key=VWweDIp0IV7cWWPpYflsPkgEcekIkYXkdPkxfO02R2JbjXq-u1tf6Axsp7824S_7)
+* Monitor, search and retrieve all your agents' onchain activity and outputs: https://agents.fileverse.io/
 
 ## Overview
 
