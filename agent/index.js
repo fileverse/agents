@@ -209,8 +209,6 @@ class Agent {
       JSON.stringify(metadata)
     );
 
-    console.log({ metadataIpfsHash });
-
     const hash = await this.smartAccountClient.sendUserOperation({
       calls: [{
         to: this.portal,
@@ -226,8 +224,6 @@ class Agent {
       }]
     });
 
-    console.log({ hash });
-
     const receipt = await this.smartAccountClient.waitForUserOperationReceipt({ hash });
     const logs = parseEventLogs({
       abi: PortalABI,
@@ -235,11 +231,7 @@ class Agent {
       eventName: "AddedFile",
     });
 
-    console.log({ logs });
-
     const addedFileLog = logs[0];
-
-    console.log({ addedFileLog });
 
     if (!addedFileLog) {
       throw new Error("AddedFile event not found");
