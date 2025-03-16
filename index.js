@@ -5,7 +5,12 @@ import {
   BaseStorageProvider,
 } from "./storage/index.js";
 
-export { Agent, PinataStorageProvider, SwarmStorageProvider, BaseStorageProvider };
+export {
+  Agent,
+  PinataStorageProvider,
+  SwarmStorageProvider,
+  BaseStorageProvider,
+};
 
 export default {
   Agent,
