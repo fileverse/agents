@@ -320,4 +320,4 @@ class Agent {
   }
 }
 
-export { Agent, StorageProvider };
+export { Agent };
