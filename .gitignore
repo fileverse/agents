@@ -39,3 +39,4 @@ logs/
 *.pid
 *.seed
 *.pid.lock
+.gitsigners

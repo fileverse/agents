@@ -22,6 +22,7 @@
   "author": "Vijay Krishnavanshi",
   "license": "MIT",
   "dependencies": {
+    "@ethersphere/bee-js": "^9.0.2",
     "@ucans/ucans": "^0.12.0",
     "crypto": "^1.0.1",
     "dotenv": "^16.4.7",
