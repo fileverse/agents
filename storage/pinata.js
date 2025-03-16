@@ -19,17 +19,20 @@ class PinataStorageProvider extends BaseStorageProvider {
 
   async upload(fileName, content) {
     try {
+      const protocol = await this.protocol();
       const file = new File([content], fileName, { type: "text/plain" });
       const result = await this.pinata.upload.file(file);
-      return `ipfs://${result.IpfsHash}`;
+      return `${protocol}${result.IpfsHash}`;
     } catch (error) {
       console.error("Error uploading to IPFS:", error);
       throw error;
     }
   }
 
-  async download(ipfsHash) {
-    const result = await this.pinata.download.file(ipfsHash);
+  async download(reference) {
+    const protocol = await this.protocol();
+    const strippedReference = reference.replace(protocol, '');
+    const result = await this.pinata.download.file(strippedReference);
     return result;
   }
 

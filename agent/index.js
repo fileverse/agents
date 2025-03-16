@@ -15,7 +15,7 @@ import { createSmartAccountClient } from "permissionless";
 import fs from "fs";
 
 class Agent {
-  DELETED_HASH = "ipfs://deleted";
+  DELETED_HASH = "deleted";
   constructor({ chain, privateKey, pimlicoAPIKey, storageProvider }) {
     if (!chain) {
       throw new Error("Chain is required - options: gnosis, sepolia");
@@ -290,6 +290,7 @@ class Agent {
 
   async delete(fileId) {
     try {
+      const protocol = await this.storageProvider.protocol();
       const hash = await this.smartAccountClient.sendUserOperation({
         calls: [{
           to: this.portal,
@@ -297,8 +298,8 @@ class Agent {
           functionName: "editFile",
           args: [
           fileId,
-          this.DELETED_HASH,
-          this.DELETED_HASH,
+          `${protocol}${this.DELETED_HASH}`,
+          `${protocol}${this.DELETED_HASH}`,
           "", // _gateIPFSHash (empty for deleted files)
           0, // filetype (0 = PUBLIC from enum)
           0, // version

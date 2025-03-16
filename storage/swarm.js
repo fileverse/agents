@@ -20,6 +20,7 @@ class SwarmStorageProvider extends BaseStorageProvider {
 
   async upload(fileName, content) {
     try {
+      const protocol = await this.protocol();
       // Create a File object from the content
       const file = new File([content], fileName, { type: "text/plain" });
       
@@ -29,7 +30,7 @@ class SwarmStorageProvider extends BaseStorageProvider {
       });
 
       // Return the Swarm reference as a URI
-      return `bzz://${result.reference}`;
+      return `${protocol}${result.reference}`;
     } catch (error) {
       console.error("Error uploading to Swarm:", error);
       throw error;
@@ -38,7 +39,8 @@ class SwarmStorageProvider extends BaseStorageProvider {
 
   async download(reference) {
     try {
-      const strippedReference = reference.replace('bzz://', '');
+      const protocol = await this.protocol();
+      const strippedReference = reference.replace(protocol, '');
       const result = await this.bee.downloadFile(strippedReference);
       return result;
     } catch (error) {
