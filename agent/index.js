@@ -4,7 +4,6 @@ import {
   http,
   parseEventLogs,
 } from "viem";
-import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { gnosis, sepolia } from "viem/chains";
 import { PortalRegistryABI, PortalABI } from "../abi/index.js";
 import { generatePortalKeys, getPortalKeyVerifiers } from "./keys.js";
@@ -16,7 +15,7 @@ import fs from "fs";
 
 class Agent {
   DELETED_HASH = "deleted";
-  constructor({ chain, privateKey, pimlicoAPIKey, storageProvider }) {
+  constructor({ chain, viemAccount, pimlicoAPIKey, storageProvider }) {
     if (!chain) {
       throw new Error("Chain is required - options: gnosis, sepolia");
     }
@@ -29,9 +28,7 @@ class Agent {
     this.chain = chain === "gnosis" ? gnosis : sepolia;
     this.pimlicoAPIKey = pimlicoAPIKey;
     this.storageProvider = storageProvider;
-    this.viemAccount = privateKey
-      ? privateKeyToAccount(privateKey)
-      : privateKeyToAccount(generatePrivateKey());
+    this.viemAccount = viemAccount;
     const clients = this.genrateClients();
     this.publicClient = clients.publicClient;
     this.walletClient = clients.walletClient;
@@ -186,11 +183,21 @@ class Agent {
     return this.portal;
   }
 
+  async prechecks() {
+    if (!this.safeAccount) {
+      throw new Error("Storage not setup yet!");
+    }
+    if (!this.portal) {
+      throw new Error("Portal not found!");
+    }
+  }
+
   async uploadToStorage(fileName, content) {
     return this.storageProvider.upload(fileName, content);
   }
 
   async create(output) {
+    await this.prechecks();
     const contentIpfsHash = await this.uploadToStorage('output.md', output);
 
     const metadata = {
@@ -201,6 +208,8 @@ class Agent {
       'metadata.json',
       JSON.stringify(metadata)
     );
+
+    console.log({ metadataIpfsHash });
 
     const hash = await this.smartAccountClient.sendUserOperation({
       calls: [{
@@ -217,13 +226,20 @@ class Agent {
       }]
     });
 
+    console.log({ hash });
+
     const receipt = await this.smartAccountClient.waitForUserOperationReceipt({ hash });
     const logs = parseEventLogs({
       abi: PortalABI,
       logs: receipt.logs,
       eventName: "AddedFile",
     });
+
+    console.log({ logs });
+
     const addedFileLog = logs[0];
+
+    console.log({ addedFileLog });
 
     if (!addedFileLog) {
       throw new Error("AddedFile event not found");
@@ -239,6 +255,7 @@ class Agent {
   }
 
   async getFile(fileId) {
+    await this.prechecks();
     const file = await this.publicClient.readContract({
       address: this.portal,
       abi: PortalABI,
@@ -255,6 +272,7 @@ class Agent {
   }
 
   async update(fileId, output) {
+    await this.prechecks();
     const contentIpfsHash = await this.uploadToStorage("output.md", output);
 
     const metadata = {
@@ -289,6 +307,7 @@ class Agent {
   }
 
   async delete(fileId) {
+    await this.prechecks();
     try {
       const protocol = await this.storageProvider.protocol();
       const hash = await this.smartAccountClient.sendUserOperation({
