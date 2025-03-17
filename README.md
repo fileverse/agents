@@ -27,17 +27,25 @@ npm install @fileverse/agents
 ## Usage
 
 ```javascript
-const { Agent } = require('@fileverse/agents');
+import { Agent } from '@fileverse/agents';
+import { privateKeyToAccount } from 'viem/accounts';
+import { PinataStorageProvider } from '@fileverse/agents/storage';
 
-const agent = new Agent({
-    chain: process.env.CHAIN, // required - options: gnosis, sepolia
-    privateKey: process.env.PRIVATE_KEY, // optional if not provided, the agent will generate a random private key
-    pinataJWT: process.env.PINATA_JWT, // required - see how to get API keys below
-    pinataGateway: process.env.PINATA_GATEWAY, // required - see how to get API keys below
-    pimlicoAPIKey: process.env.PIMLICO_API_KEY, // required - see how to get API keys below
+// Create storage provider
+const storageProvider = new PinataStorageProvider({
+  jwt: process.env.PINATA_JWT,
+  gateway: process.env.PINATA_GATEWAY
 });
 
-// setup storage with above namespace
+// Initialize agent
+const agent = new Agent({
+  chain: process.env.CHAIN, // required - options: gnosis, sepolia
+  viemAccount: privateKeyToAccount(process.env.PRIVATE_KEY), // required - viem account instance
+  pimlicoAPIKey: process.env.PIMLICO_API_KEY, // required - see how to get API keys below
+  storageProvider // required - storage provider instance
+});
+
+// setup storage with namespace
 // This will generate the required keys and deploy a portal or pull the existing 
 await agent.setupStorage('my-namespace'); // file is generated as the creds/${namespace}.json in the main directory
 
@@ -49,8 +57,8 @@ const file = await agent.create('Hello World');
 console.log(`File created: ${file}`);
 
 // get the file
-const file = await agent.getFile(file.fileId);
-console.log(`File: ${file}`);
+const fileData = await agent.getFile(file.fileId);
+console.log(`File: ${fileData}`);
 
 // update the file
 const updatedFile = await agent.update(file.fileId, 'Hello World 2');
