@@ -1,6 +1,6 @@
 {
   "name": "@fileverse/agents",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "Interface to use fileverse infra programmatically",
   "main": "index.js",
   "type": "module",
