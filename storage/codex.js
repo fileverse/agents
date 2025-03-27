@@ -1,5 +1,6 @@
 import { BaseStorageProvider } from "./base.js";
 import { Codex } from "@codex-storage/sdk-js";
+import { NodeUploadStategy } from "@codex-storage/sdk-js/node";
 
 class CodexStorageProvider extends BaseStorageProvider {
     constructor({ codexURI }) {
@@ -14,13 +15,20 @@ class CodexStorageProvider extends BaseStorageProvider {
 
     async upload(fileName, content) {
         const file = new File([content], fileName, { type: "text/plain" });
- 
-        const resultPromise = this.client.data.upload(file, undefined, {filename: fileName, contentType: file.type});
-        const result = await resultPromise.result
-        if (result.error) {
-            throw new Error(`Failed to upload file: ${result.data.message}`);
+
+        try {
+            const strategy = new NodeUploadStategy([content], fileName, { type: "text/plain" })
+    
+            const resultPromise = this.client.data.upload(strategy);
+            const result = await resultPromise.result
+            if (result.error) {
+                throw new Error(`Failed to upload file: ${result.data.message}`);
+            }
+            return result.data;
+        } catch (error) {
+            throw new Error(`Failed to upload: ${error.errors}`)
         }
-        return result.data;
+        
     }
     async download(reference) {
         const result = await this.client.data.networkDownloadStream(reference);

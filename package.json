@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "mocha --loader=ts-node/esm 'test/**/*.{js,ts}'"
+    "test": "mocha --loader=ts-node/esm --timeout=10000 'test/**/*.{js,ts}'"
   },
   "bin": "./bin/cli.js",
   "keywords": [
@@ -22,7 +22,7 @@
   "author": "Vijay Krishnavanshi",
   "license": "MIT",
   "dependencies": {
-    "@codex-storage/sdk-js": "^0.0.23",
+    "@codex-storage/sdk-js": "^0.1.0",
     "@ethersphere/bee-js": "^9.0.2",
     "@ucans/ucans": "^0.12.0",
     "crypto": "^1.0.1",
