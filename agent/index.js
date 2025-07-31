@@ -25,7 +25,7 @@ class Agent {
     if (!storageProvider) {
       throw new Error("Storage provider is required");
     }
-    this.chain = chain === "gnosis" ? gnosis : sepolia;
+    this.chain = chain?.name?.toLowerCase() === "gnosis" ? gnosis : sepolia;
     this.pimlicoAPIKey = pimlicoAPIKey;
     this.storageProvider = storageProvider;
     this.viemAccount = viemAccount;
@@ -113,8 +113,8 @@ class Agent {
       const storage = await this.loadStorage(this.namespace);
       if (storage && storage.namespace === this.namespace) {
         console.log("Storage already exists");
-        this.portal = storage.portalAddress;
-        return storage;
+        this.portal = storage;
+        return storage.portalAddress;
       }
       const metadataIPFSHash = await this.uploadToStorage(
         "metadata.json",
@@ -156,23 +156,23 @@ class Agent {
 
       if (!portalAddress) throw new Error("Portal not found");
 
-      this.portal = portalAddress;
+      const portalData = {
+        portalAddress,
+        owner: this.owner,
+        namespace: this.namespace,
+        metadataIPFSHash,
+        portalKeys,
+        verifiers,
+      };
+      
+      // Set portal data
+      this.portal = portalData;
+      
       fs.writeFileSync(
         `creds/${this.namespace}.json`,
-        JSON.stringify(
-          {
-            portalAddress,
-            owner: this.owner,
-            namespace: this.namespace,
-            metadataIPFSHash,
-            portalKeys,
-            verifiers,
-          },
-          null,
-          2
-        )
+        JSON.stringify(portalData, null, 2)
       );
-      return this.portal;
+      return portalAddress;
     } catch (error) {
       console.error("Error deploying portal:", error);
       throw error;
@@ -187,7 +187,7 @@ class Agent {
     if (!this.safeAccount) {
       throw new Error("Storage not setup yet!");
     }
-    if (!this.portal) {
+    if (!this.portal || !this.portal.portalAddress) {
       throw new Error("Portal not found!");
     }
   }
@@ -201,7 +201,7 @@ class Agent {
     const contentIpfsHash = await this.uploadToStorage('output.md', output);
 
     const metadata = {
-      name: `${this.portal}/${this.namespace}/output.md`,
+      name: `${this.portal.portalAddress}/${this.namespace}/output.md`,
       description: "Markdown file created by FileverseAgent",
     };
     const metadataIpfsHash = await this.uploadToStorage(
@@ -211,7 +211,7 @@ class Agent {
 
     const hash = await this.smartAccountClient.sendUserOperation({
       calls: [{
-        to: this.portal,
+        to: this.portal.portalAddress,
         abi: PortalABI,
         functionName: "addFile",
         args: [
@@ -249,7 +249,7 @@ class Agent {
   async getFile(fileId) {
     await this.prechecks();
     const file = await this.publicClient.readContract({
-      address: this.portal,
+      address: this.portal.portalAddress,
       abi: PortalABI,
       functionName: "files",
       args: [fileId],
@@ -276,7 +276,7 @@ class Agent {
 
     const hash = await this.smartAccountClient.sendUserOperation({
       calls: [{
-        to: this.portal,
+        to: this.portal.portalAddress,
         abi: PortalABI,
         functionName: "editFile",
         args: [
@@ -293,7 +293,7 @@ class Agent {
     const transaction = {
       hash: hash,
       fileId,
-      portalAddress: this.portal,
+      portalAddress: this.portal.portalAddress,
     };
     return transaction;
   }
@@ -304,7 +304,7 @@ class Agent {
       const protocol = await this.storageProvider.protocol();
       const hash = await this.smartAccountClient.sendUserOperation({
         calls: [{
-          to: this.portal,
+          to: this.portal.portalAddress,
           abi: PortalABI,
           functionName: "editFile",
           args: [
@@ -321,7 +321,7 @@ class Agent {
     const transaction = {
       hash: hash,
       fileId,
-      portalAddress: this.portal,
+      portalAddress: this.portal.portalAddress,
     };
       return transaction;
     } catch (error) {

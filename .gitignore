@@ -40,3 +40,6 @@ logs/
 *.seed
 *.pid.lock
 .gitsigners
+
+# Portal credentials
+creds/
