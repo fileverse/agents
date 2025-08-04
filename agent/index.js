@@ -25,7 +25,10 @@ class Agent {
     if (!storageProvider) {
       throw new Error("Storage provider is required");
     }
-    this.chain = chain?.name?.toLowerCase() === "gnosis" ? gnosis : sepolia;
+    this.chain =
+      chain === "gnosis" || chain?.name?.toLowerCase() === "gnosis"
+        ? gnosis
+        : sepolia;
     this.pimlicoAPIKey = pimlicoAPIKey;
     this.storageProvider = storageProvider;
     this.viemAccount = viemAccount;
