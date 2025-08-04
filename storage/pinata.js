@@ -29,9 +29,27 @@ class PinataStorageProvider extends BaseStorageProvider {
     }
   }
 
+  async unpin(reference) {
+    try {
+      const protocol = await this.protocol();
+      const strippedReference =
+        typeof reference === "string"
+          ? reference.replace(protocol, "")
+          : reference;
+      const result = await this.pinata.unpin([strippedReference]);
+      return `${protocol}${result[0].hash}`;
+    } catch (error) {
+      console.error("Error unpinning from IPFS:", error);
+      throw error;
+    }
+  }
+
   async download(reference) {
     const protocol = await this.protocol();
-    const strippedReference = reference.replace(protocol, '');
+    const strippedReference =
+      typeof reference === "string"
+        ? reference.replace(protocol, "")
+        : reference;
     const result = await this.pinata.download.file(strippedReference);
     return result;
   }
@@ -47,4 +65,4 @@ class PinataStorageProvider extends BaseStorageProvider {
   }
 }
 
-export { PinataStorageProvider }; 
+export { PinataStorageProvider };

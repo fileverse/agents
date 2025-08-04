@@ -44,10 +44,28 @@ class SwarmStorageProvider extends BaseStorageProvider {
     }
   }
 
+  async unpin(reference) {
+    try {
+      const protocol = await this.protocol();
+      const strippedReference =
+        typeof reference === "string"
+          ? reference.replace(protocol, "")
+          : reference;
+      const result = await this.bee.unpin(strippedReference);
+      return `${protocol}${result.reference}`;
+    } catch (error) {
+      console.error("Error unpinning from Swarm:", error);
+      throw error;
+    }
+  }
+
   async download(reference) {
     try {
       const protocol = await this.protocol();
-      const strippedReference = reference.replace(protocol, "");
+      const strippedReference =
+      typeof reference === "string"
+        ? reference.replace(protocol, "")
+        : reference;
       const result = await this.bee.downloadFile(strippedReference);
       return result;
     } catch (error) {

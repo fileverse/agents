@@ -7,6 +7,10 @@ class BaseStorageProvider {
     throw new Error('Method not implemented');
   }
 
+  async unpin(reference) {
+    throw new Error('Method not implemented');
+  }
+
   async protocol() {
     throw new Error('Method not implemented');
   }
@@ -16,4 +20,4 @@ class BaseStorageProvider {
   }
 }
 
-export { BaseStorageProvider }; 
+export { BaseStorageProvider };
