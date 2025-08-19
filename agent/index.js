@@ -268,6 +268,11 @@ class Agent {
 
   async update(fileId, output) {
     await this.prechecks();
+
+    // Read latest metadata and content IPFS hashes from portal before updating,
+    // in order to unpin them after a successful update transaction
+    const fileBeforeUpdate = await this.getFile(fileId);
+
     const contentIpfsHash = await this.uploadToStorage("output.md", output);
 
     const metadata = {
@@ -293,6 +298,15 @@ class Agent {
       }]
     });
 
+    // try to unpin the file content and metadata
+    try {
+      const { metadataIpfsHash, contentIpfsHash } = fileBeforeUpdate;
+      await this.storageProvider.unpin(metadataIpfsHash);
+      await this.storageProvider.unpin(contentIpfsHash);
+    } catch (error) {
+      console.error("Error unpinning file from storage:", error);
+    }
+
     const transaction = {
       hash: hash,
       fileId,
@@ -305,6 +319,11 @@ class Agent {
     await this.prechecks();
     try {
       const protocol = await this.storageProvider.protocol();
+
+      // Read metadata and content IPFS hashes from portal before deleting,
+      // in order to unpin them after a successful deletion transaction
+      const fileBeforeDelete = await this.getFile(fileId);
+
       const hash = await this.smartAccountClient.sendUserOperation({
         calls: [{
           to: this.portal.portalAddress,
@@ -320,6 +339,14 @@ class Agent {
         ],
       }]
     });
+
+    try {
+      const { metadataIpfsHash, contentIpfsHash } = fileBeforeDelete;
+      await this.storageProvider.unpin(metadataIpfsHash);
+      await this.storageProvider.unpin(contentIpfsHash);
+    } catch (error) {
+      console.error("Error unpinning file from storage:", error);
+    }
 
     const transaction = {
       hash: hash,
